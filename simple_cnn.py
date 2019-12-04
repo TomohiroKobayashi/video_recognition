@@ -58,10 +58,11 @@ for index, name in enumerate(folder):
             break
     """
     #ランダムに950個取得する場合
-    rnd_list =  random.sample(np.arange(len(files)), 950)
+    l = list(np.arange(len(files)))
+    rnd_list =  random.sample(l, 950)
     for i in rnd_list:
-        image = Image.open(files[i])
-        image = Image.convert("RGB")
+        image = Image.open(files[i]).convert("RGB")
+        #image = Image.convert("RGB")
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
         X.append(data)
@@ -90,8 +91,8 @@ for index, name in enumerate(folder):
     #アンダーサンプリングとして横臥位に合わせて950枚ずつとする
     count = 0
     for i, file in enumerate(files):
-        image = Image.open(file)
-        image = image.convert("RGB")
+        image = Image.open(file).convert("RGB")
+        #image = image.convert("RGB")
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
         X_test.append(data)
