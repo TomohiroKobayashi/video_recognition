@@ -2,7 +2,13 @@
 *.png
 annotation_snowflower/
 annotation_tamrobraito/
+annotation_snowflower_ex/
+annotation_tamrobraito_ex/
+log/
 行動例/
 *.json
 *.hdf5
 *.zip
+領域変化観察用/
+31_done_1/
+31_done/

@@ -26,7 +26,7 @@ def load_image(path):
     return img
 
 if __name__ == "__main__":
-    pic = "106202.jpg"
+    pic = "annotation_tamrobraito/21/1449082.jpg"
 
     model = model_from_json(open(keras_model).read())
     model.load_weights(keras_param)
@@ -37,3 +37,15 @@ if __name__ == "__main__":
     prd = model.predict(np.array([img]))
     print(prd)
     prelabel = np.argmax(prd, axis=1)
+    if prelabel == 0:
+        print("立位・歩き")
+    elif prelabel == 1:
+        print("立位・停止")
+    elif prelabel == 2:
+        print("立位・採食")
+    elif prelabel == 3:
+        print("立位・その場足踏み")
+    elif prelabel == 4:
+        print("伏臥位・停止")
+    elif prelabel == 5:
+        print("横臥位・停止")

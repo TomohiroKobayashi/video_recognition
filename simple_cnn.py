@@ -78,7 +78,9 @@ X = X / 255.0
 Y = np_utils.to_categorical(Y, 6)
 
 # 学習用データと検証用データ
-X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.20)
+#X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.20)
+X_train = X
+y_train = Y
 
 #テストデータも同様に作成(タムロブライト)
 X_test = []
@@ -109,6 +111,9 @@ X_test = X_test / 255.0
 
 # 正解ラベルの形式を変換
 Y_test = np_utils.to_categorical(Y_test, 6)
+
+#X_test, X_val, y_test, y_val = train_test_split(X_test, Y_test, test_size=0.20)
+
 
 
 # CNNを構築
@@ -141,7 +146,7 @@ epochs = 50
 model.compile(loss='categorical_crossentropy',optimizer='SGD',metrics=['accuracy'])
 
 #訓練
-history = model.fit(X_train, y_train, batch_size=128, epochs=epochs,callbacks=[PlotLossesKeras()], validation_data=(X_val,y_val))
+history = model.fit(X_train, y_train, batch_size=128, epochs=epochs, validation_data=(X_test,Y_test))
 
 json_string = model.to_json()
 open('test.json', 'w').write(json_string)
@@ -165,6 +170,27 @@ plt.title("loss")
 plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 plt.show()
 """
+import matplotlib.pyplot as plt
+epochs = range(1, len(history.history['acc']) + 1)
+
+fig1 = plt.figure()
+plt.plot(epochs, history.history['loss'], label='Training loss', ls='-')
+plt.plot(epochs, history.history['val_loss'], label='Validation loss')
+plt.title('Training and Validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+fig1.savefig("loss.png")
+
+fig2 = plt.figure()
+plt.plot(epochs, history.history['acc'],  label='Training acc')
+plt.plot(epochs, history.history['val_acc'], label="Validation acc")
+plt.title('Training and Validation accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+fig2.savefig("acc.png")
+
 
 """
 FLAGS = None
