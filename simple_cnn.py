@@ -21,6 +21,23 @@ def detect_img(yolo,img):
         #r_image.show()
     yolo.close_session()
 
+#以下はデータオーグメンテーションの関数
+def horizontal_flip(image):
+    image = image[:, ::-1, :]
+    return image
+def vertical_flip(image):
+    image = image[::-1, :, :]
+    return image
+
+from scipy.ndimage.interpolation import rotate
+from scipy.misc import imresize
+def random_rotation(image, angle_range=(0, 180)):
+    h, w, _ = image.shape
+    angle = np.random.randint(*angle_range)
+    image = rotate(image, angle)
+    image = imresize(image, (h, w))
+    return image
+
 #独自データで学習
 import keras
 from keras.utils import np_utils
@@ -43,20 +60,7 @@ for index, name in enumerate(folder):
     print(name+ ":" + str(index))
     dir = "annotation_snowflower/" + name
     files = glob.glob(dir + "/*.jpg")
-    """
-    #アンダーサンプリングとして横臥位に合わせて950枚ずつとする
-    count = 0
-    for i, file in enumerate(files):
-        image = Image.open(file)
-        image = image.convert("RGB")
-        image = image.resize((image_size, image_size))
-        data = np.asarray(image)
-        X.append(data)
-        Y.append(index)
-        count += 1
-        if count >= 950:
-            break
-    """
+
     #ランダムに950個取得する場合
     l = list(np.arange(len(files)))
     rnd_list =  random.sample(l, 950)
@@ -67,9 +71,23 @@ for index, name in enumerate(folder):
         data = np.asarray(image)
         X.append(data)
         Y.append(index)
+        #data Augumentation
+        if random.random() < 0.4:
+            data = horizontal_flip(data)
+            X.append(data)
+            Y.append(index)
+        if random.random() < 0.4:
+            data = vertical_flip(data)
+            X.append(data)
+            Y.append(index)
+        if random.random() < 0.4:
+            data = random_rotation(data)
+            X.append(data)
+            Y.append(index)
 
 X = np.array(X)
 Y = np.array(Y)
+print("X_shape:"+str(X.shape))
 
 X = X.astype('float32')
 X = X / 255.0
@@ -78,9 +96,16 @@ X = X / 255.0
 Y = np_utils.to_categorical(Y, 6)
 
 # 学習用データと検証用データ
-#X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.20)
 X_train = X
 y_train = Y
+
+print("before:"+str(y_train[:10]))
+
+#学習データのシャッフル
+for l in [X_train, y_train]:
+    np.random.seed(1)
+    np.random.shuffle(l)
+print("after:"+str(y_train[:10]))
 
 #テストデータも同様に作成(タムロブライト)
 X_test = []
@@ -113,8 +138,6 @@ X_test = X_test / 255.0
 Y_test = np_utils.to_categorical(Y_test, 6)
 
 #X_test, X_val, y_test, y_val = train_test_split(X_test, Y_test, test_size=0.20)
-
-
 
 # CNNを構築
 model = Sequential()
@@ -157,19 +180,6 @@ score = model.evaluate(X_test, Y_test)
 print("test loss", score[0])
 print("test acc",  score[1])
 
-"""
-import matplotlib.pyplot as plt
-x = range(epochs)
-plt.plot(x, history.history['val_acc'], label="acc")
-plt.title("accuracy")
-plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-plt.show()
-
-plt.plot(x, history.history['loss'], label="loss")
-plt.title("loss")
-plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-plt.show()
-"""
 import matplotlib.pyplot as plt
 epochs = range(1, len(history.history['acc']) + 1)
 
@@ -190,18 +200,3 @@ plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
 plt.legend()
 fig2.savefig("acc.png")
-
-
-"""
-FLAGS = None
-if __name__ == '__main__':
-    img = "1819502.jpg"
-    parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    parser.add_argument(
-        '--image', default="False", action="store_true",
-        help='Image detection mode, will ignore all positional arguments'
-    )
-    FLAGS = parser.parse_args()
-    detect_img(YOLO(**vars(FLAGS)),img)
-    #detect_img(YOLO({"image":img}))
-"""
