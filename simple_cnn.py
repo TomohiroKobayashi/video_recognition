@@ -37,6 +37,15 @@ def random_rotation(image, angle_range=(0, 180)):
     image = rotate(image, angle)
     image = imresize(image, (h, w))
     return image
+"""
+def random_rotation(image, angle_range=(0, 180)):
+    h, w, _ = image.shape
+    angle = np.random.randint(*angle_range)
+    image = rotate(image, angle)
+    image = Image.fromarray(image)
+    image = np.asarray(image.resize((h,w)))
+    return image
+"""
 
 #独自データで学習
 import keras
@@ -58,13 +67,13 @@ X = []
 Y = []
 for index, name in enumerate(folder):
     print(name+ ":" + str(index))
-    dir = "annotation_snowflower/" + name
+    dir = "train_data_crop/" + name
     files = glob.glob(dir + "/*.jpg")
 
     #ランダムに950個取得する場合
-    l = list(np.arange(len(files)))
-    rnd_list =  random.sample(l, 950)
-    for i in rnd_list:
+    #l = list(np.arange(len(files)))
+    #rnd_list =  random.sample(l, 950)
+    for i in range(len(files)):
         image = Image.open(files[i]).convert("RGB")
         #image = Image.convert("RGB")
         image = image.resize((image_size, image_size))
@@ -113,7 +122,7 @@ Y_test = []
 for index, name in enumerate(folder):
     print("test")
     print(name+ ":" + str(index))
-    dir = "annotation_tamrobraito/" + name
+    dir = "test_data/" + name
     files = glob.glob(dir + "/*.jpg")
     #アンダーサンプリングとして横臥位に合わせて950枚ずつとする
     count = 0
@@ -125,8 +134,6 @@ for index, name in enumerate(folder):
         X_test.append(data)
         Y_test.append(index)
         count += 1
-        if count >= 50:
-            break
 
 X_test = np.array(X_test)
 Y_test = np.array(Y_test)
