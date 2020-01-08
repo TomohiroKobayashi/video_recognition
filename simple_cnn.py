@@ -1,7 +1,7 @@
 import sys
 import argparse
 from PIL import Image
-
+"""
 #yoloを呼び出すためにパスを追加
 sys.path.append("/Users/kobayashitomohiro/Document/大学/研究室/馬の分娩予測研究/研究用コード/keras-yolo3")
 from yolo import YOLO, detect_video
@@ -20,6 +20,7 @@ def detect_img(yolo,img):
         r_image.save('test1_done.png')
         #r_image.show()
     yolo.close_session()
+"""
 
 #以下はデータオーグメンテーションの関数
 def horizontal_flip(image):
@@ -30,6 +31,7 @@ def vertical_flip(image):
     return image
 
 from scipy.ndimage.interpolation import rotate
+"""
 from scipy.misc import imresize
 def random_rotation(image, angle_range=(0, 180)):
     h, w, _ = image.shape
@@ -38,6 +40,7 @@ def random_rotation(image, angle_range=(0, 180)):
     image = imresize(image, (h, w))
     return image
 """
+
 def random_rotation(image, angle_range=(0, 180)):
     h, w, _ = image.shape
     angle = np.random.randint(*angle_range)
@@ -45,7 +48,6 @@ def random_rotation(image, angle_range=(0, 180)):
     image = Image.fromarray(image)
     image = np.asarray(image.resize((h,w)))
     return image
-"""
 
 #独自データで学習
 import keras
@@ -167,6 +169,12 @@ model.add(Flatten())
 model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
+
+#64次元の層は２つの特徴量を結合するための後付け
+model.add(Dense(64))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
 model.add(Dense(6))
 model.add(Activation('softmax'))
 
