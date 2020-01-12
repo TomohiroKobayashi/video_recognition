@@ -80,103 +80,114 @@ def residual_block(x, kernel_size, filters, layers=2):
 
   return x
 """
-import numpy as np
-from tensorflow.keras.layers import Input, Conv2D, Add, BatchNormalization, Activation, MaxPooling2D, Dense, Dropout, Flatten, GlobalAveragePooling2D
-from tensorflow.keras.models import Model
-import tensorflow as tf
+from keras.layers import Conv2D, Activation, BatchNormalization, Add, Input, GlobalAveragePooling2D, Dense
+from keras.models import Model
+from keras.optimizers import SGD
+from keras.datasets import cifar10
+from keras.utils import to_categorical
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import Callback, LearningRateScheduler
+from keras.regularizers import l2
+import time
+import pickle
 
-'''
-ResNet18: nb_blocks = [2,2,2,2], wide = 2, nottleneck = False
-ResNet34: nb_blocks = [3,4,6,3], wide = 2, nottleneck = False
-ResNet50: nb_blocks = [3,4,6,3], wide = 2, nottleneck = True
-ResNet101: nb_blocks = [3,4,23,3], wide = 2, nottleneck = True
-ResNet152: nb_blocks = [3,8,36,3], wide = 2, nottleneck = True
-WideResNet: nb_blocks = [3,3,3], wide >= 3, nottleneck = False
-'''
+# 経過時間用のコールバック
+class TimeHistory(Callback):
+    def on_train_begin(self, logs={}):
+        self.times = []
 
-def resnet(nb_blocks = [3,4,6,3], wide = 2, bottleneck = False):
-  input = Input(shape=(128, 128, 3), dtype=tf.float32)
-  X = input
-  n_filter = 64
-  X = Conv2D(n_filter, (3,3),  padding="same",kernel_initializer='he_normal')(X)
+    def on_epoch_begin(self, batch, logs={}):
+        self.epoch_start_time = time.time()
 
-  if bottleneck == False:
-
-    for i, repete in enumerate(nb_blocks):
-      for j in range(repete):
-        ''' BN - Conv - BN - ReLu - Conv - BN
-      Han et al. arXiv:1610.02915'''
-
-        shortcut = X
-        if i>0 and j == 0:
-          shortcut =  Conv2D(n_filter, (1, 1), strides=(2, 2),
-                            kernel_initializer='he_normal')(shortcut)
-          X = BatchNormalization()(X)
-          X = Conv2D(n_filter, (3,3), strides= (2,2), padding="same", kernel_initializer='he_normal')(X)
-          X = BatchNormalization()(X)
-
-        else:
-          X = BatchNormalization()(X)
-          X = Conv2D(n_filter, (3,3), padding="same", kernel_initializer='he_normal')(X)
-          X = BatchNormalization()(X)
-
-        X = Activation("relu")(X)
-        X = Conv2D(n_filter, (3,3), padding="same",kernel_initializer='he_normal')(X)
-        X = BatchNormalization()(X)
-
-        # ショートカットとマージ
-        X = Add()([X, shortcut])
-      n_filter *= wide
-
-  if bottleneck == True:
-    for i, repete in enumerate(nb_blocks):
-      for j in range(repete):
-        ''' BN - Conv(1,1) - BN - ReLu - Conv(3,3) - BN - ReLu - Conv(1,1) - BN
-        Han et al. arXiv:1610.02915'''
-
-        shortcut = X
-        if i==0 and j ==0:
-          shortcut =  Conv2D(n_filter * 4, (1, 1), kernel_initializer='he_normal')(shortcut)
-
-        if i>0 and j == 0:
-          shortcut =  Conv2D(n_filter * 4, (1, 1), strides=(2, 2),
-                            kernel_initializer='he_normal')(shortcut)
-          X = BatchNormalization()(X)
-          X = Conv2D(n_filter, (1,1), strides= (2,2), padding="same", kernel_initializer='he_normal')(X)
-          X = BatchNormalization()(X)
-        else:
-          X = BatchNormalization()(X)
-          X = Conv2D(n_filter, (1,1), padding="same", kernel_initializer='he_normal')(X)
-          X = BatchNormalization()(X)
+    def on_epoch_end(self, batch, logs={}):
+        self.times.append(time.time() - self.epoch_start_time)
 
 
-        X = Activation("relu")(X)
-        X = Conv2D(n_filter, (3,3), padding="same",kernel_initializer='he_normal')(X)
-        X = BatchNormalization()(X)
-        X = Activation("relu")(X)
-        X = Conv2D(n_filter * 4, (1,1), padding="same",kernel_initializer='he_normal')(X)
-        X = BatchNormalization()(X)
+class ResNet:
+    def __init__(self, n, framework, channels_first=False, initial_lr=0.01, nb_epochs=100):
+        self.n = n
+        self.framework = framework
+        # 論文通りの初期学習率=0.1だと発散するので0.01にする
+        self.initial_lr = initial_lr
+        self.nb_epochs = nb_epochs
+        self.weight_decay = 0.0005
+        # MX-Netではchannels_firstなのでその対応をする
+        self.channels_first = channels_first
+        self.data_format = "channels_first" if channels_first else "channels_last"
+        self.bn_axis = 1 if channels_first else -1
+        # Make model
+        self.model = self.make_model()
 
-        # ショートカットとマージ
-        X = Add()([X, shortcut])
-      n_filter *= wide
+    # オリジナルの論文に従って、サブサンプリングにPoolingではなくstride=2のConvを使う
+    def subsumpling(self, output_channels, input_tensor):
+        return Conv2D(output_channels, kernel_size=1, strides=(2,2), data_format=self.data_format, kernel_regularizer=l2(self.weight_decay))(input_tensor)
 
+    # BN->ReLU->Conv->BN->ReLU->Conv をショートカットさせる(Kaimingらの研究による)
+    # https://www.slideshare.net/KotaNagasato/resnet-82940994
+    def block(self, channles, input_tensor):
+        # ショートカット元
+        shortcut = input_tensor
+        # メイン側
+        x = BatchNormalization(axis=self.bn_axis)(input_tensor)
+        x = Activation("relu")(x)
+        x = Conv2D(channles, kernel_size=3, padding="same", data_format=self.data_format, kernel_regularizer=l2(self.weight_decay))(x)
+        x = BatchNormalization(axis=self.bn_axis)(x)
+        x = Activation("relu")(x)
+        x = Conv2D(channles, kernel_size=3, padding="same", data_format=self.data_format, kernel_regularizer=l2(self.weight_decay))(x)
+        # 結合
+        return Add()([x, shortcut])
 
-  # 全結合
-  X = Activation("relu")(X)
-  X = GlobalAveragePooling2D()(X)
-  X = Dropout(0.5)(X)
-  y = Dense(6, activation="softmax")(X)
-  # モデル
-  model = Model(inputs=[input], outputs=[y])
-  return model
+    def make_model(self):
+        input = Input(shape=(3, 128, 128)) if self.channels_first else Input(shape=(128, 128, 3))
+        # 3->16にチャンネル数を増やす
+        x = Conv2D(16, kernel_size=3, padding="same", data_format=self.data_format, kernel_regularizer=l2(self.weight_decay))(input)
+        # 32x32x16のブロックをn回
+        for i in range(self.n):
+            x = self.block(16, x)
+        # 16x16x32
+        x = self.subsumpling(32, x)
+        for i in range(self.n):
+            x = self.block(32, x)
+        # 8x8x64
+        x = self.subsumpling(64, x)
+        for i in range(self.n):
+            x = self.block(64, x)
+        # Global Average Pooling
+        x = GlobalAveragePooling2D(data_format=self.data_format)(x)
+        x = Dense(6, activation="softmax")(x)
+        # model
+        model = Model(input, x)
+        return model
 
-#wide resudual network
-model = resnet(nb_blocks = [3,3,3], wide = 4)
+    def lr_schduler(self, epoch):
+        x = self.initial_lr
+        if epoch >= self.nb_epochs * 0.5: x /= 10.0
+        if epoch >= self.nb_epochs * 0.75: x /= 10.0
+        return x
 
-# モデルをコンパイル　学習係数は 0.003
-model.compile( tf.train.AdamOptimizer(learning_rate=3e-3), loss="categorical_crossentropy",
-              metrics=["acc"])
+    def train(self, X_train, y_train, X_val, y_val):
+        # コンパイル
+        self.model.compile(optimizer=SGD(lr=self.initial_lr, momentum=0.9), loss="categorical_crossentropy", metrics=["acc"])
+        # Data Augmentation
+        traingen = ImageDataGenerator(
+            rescale=1./255,
+            width_shift_range=4./32,
+            height_shift_range=4./32,
+            horizontal_flip=True)
+        valgen = ImageDataGenerator(
+            rescale=1./255)
+        # Callback
+        time_cb = TimeHistory()
+        lr_cb = LearningRateScheduler(self.lr_schduler)
+        # Train
+        history = self.model.fit_generator(traingen.flow(X_train, y_train, batch_size=128), epochs=self.nb_epochs,
+                                           steps_per_epoch=len(X_train)/128, validation_data=valgen.flow(X_val, y_val),
+                                           callbacks=[time_cb, lr_cb]).history
+        history["time"] = time_cb.times
+        # Save history
+        file_name = f"{self.framework}_n{self.n}.dat"
+        with open(file_name, "wb") as fp:
+            pickle.dump(history, fp)
 
 
 #独自データで学習
@@ -295,8 +306,11 @@ residual_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=ker
 history = residual_model.fit(X_train, y_train, batch_size=128, epochs=epochs, validation_data=(X_test,Y_test))
 """
 batch_size=128
-history = model.fit(X_train, y_train, batch_size=128,
-                               epochs=epochs, validation_data=(X_test,Y_test))
+
+net = ResNet(3, "keras_tf", nb_epochs=epochs)
+    # train
+net.train(X_train, y_train, X_test, Y_test)
+
 json_string = model.to_json()
 open('test.json', 'w').write(json_string)
 model.save_weights('test.hdf5')
