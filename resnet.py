@@ -20,7 +20,7 @@ def random_rotation(image, angle_range=(0, 180)):
     image = Image.fromarray(image)
     image = np.asarray(image.resize((h,w)))
     return image
-
+"""
 # モデルの生成
 def generate_model(input_shape, block_f, blocks, block_sets, block_layers=2, first_filters=32, kernel_size=(3,3)):
   inputs = Input(shape=input_shape)
@@ -79,6 +79,105 @@ def residual_block(x, kernel_size, filters, layers=2):
     x = ReLU()(x)
 
   return x
+"""
+import numpy as np
+from tensorflow.keras.layers import Input, Conv2D, Add, BatchNormalization, Activation, MaxPooling2D, Dense, Dropout, Flatten, GlobalAveragePooling2D
+from tensorflow.keras.models import Model
+import tensorflow as tf
+
+'''
+ResNet18: nb_blocks = [2,2,2,2], wide = 2, nottleneck = False
+ResNet34: nb_blocks = [3,4,6,3], wide = 2, nottleneck = False
+ResNet50: nb_blocks = [3,4,6,3], wide = 2, nottleneck = True
+ResNet101: nb_blocks = [3,4,23,3], wide = 2, nottleneck = True
+ResNet152: nb_blocks = [3,8,36,3], wide = 2, nottleneck = True
+WideResNet: nb_blocks = [3,3,3], wide >= 3, nottleneck = False
+'''
+
+def resnet(nb_blocks = [3,4,6,3], wide = 2, bottleneck = False):
+  input = Input(shape=(128, 128, 3), dtype=tf.float32)
+  X = input
+  n_filter = 64
+  X = Conv2D(n_filter, (3,3),  padding="same",kernel_initializer='he_normal')(X)
+
+  if bottleneck == False:
+
+    for i, repete in enumerate(nb_blocks):
+      for j in range(repete):
+        ''' BN - Conv - BN - ReLu - Conv - BN
+      Han et al. arXiv:1610.02915'''
+
+        shortcut = X
+        if i>0 and j == 0:
+          shortcut =  Conv2D(n_filter, (1, 1), strides=(2, 2),
+                            kernel_initializer='he_normal')(shortcut)
+          X = BatchNormalization()(X)
+          X = Conv2D(n_filter, (3,3), strides= (2,2), padding="same", kernel_initializer='he_normal')(X)
+          X = BatchNormalization()(X)
+
+        else:
+          X = BatchNormalization()(X)
+          X = Conv2D(n_filter, (3,3), padding="same", kernel_initializer='he_normal')(X)
+          X = BatchNormalization()(X)
+
+        X = Activation("relu")(X)
+        X = Conv2D(n_filter, (3,3), padding="same",kernel_initializer='he_normal')(X)
+        X = BatchNormalization()(X)
+
+        # ショートカットとマージ
+        X = Add()([X, shortcut])
+      n_filter *= wide
+
+  if bottleneck == True:
+    for i, repete in enumerate(nb_blocks):
+      for j in range(repete):
+        ''' BN - Conv(1,1) - BN - ReLu - Conv(3,3) - BN - ReLu - Conv(1,1) - BN
+        Han et al. arXiv:1610.02915'''
+
+        shortcut = X
+        if i==0 and j ==0:
+          shortcut =  Conv2D(n_filter * 4, (1, 1), kernel_initializer='he_normal')(shortcut)
+
+        if i>0 and j == 0:
+          shortcut =  Conv2D(n_filter * 4, (1, 1), strides=(2, 2),
+                            kernel_initializer='he_normal')(shortcut)
+          X = BatchNormalization()(X)
+          X = Conv2D(n_filter, (1,1), strides= (2,2), padding="same", kernel_initializer='he_normal')(X)
+          X = BatchNormalization()(X)
+        else:
+          X = BatchNormalization()(X)
+          X = Conv2D(n_filter, (1,1), padding="same", kernel_initializer='he_normal')(X)
+          X = BatchNormalization()(X)
+
+
+        X = Activation("relu")(X)
+        X = Conv2D(n_filter, (3,3), padding="same",kernel_initializer='he_normal')(X)
+        X = BatchNormalization()(X)
+        X = Activation("relu")(X)
+        X = Conv2D(n_filter * 4, (1,1), padding="same",kernel_initializer='he_normal')(X)
+        X = BatchNormalization()(X)
+
+        # ショートカットとマージ
+        X = Add()([X, shortcut])
+      n_filter *= wide
+
+
+  # 全結合
+  X = Activation("relu")(X)
+  X = GlobalAveragePooling2D()(X)
+  X = Dropout(0.5)(X)
+  y = Dense(6, activation="softmax")(X)
+  # モデル
+  model = Model(inputs=[input], outputs=[y])
+  return model
+
+#wide resudual network
+model = resnet(nb_blocks = [3,3,3], wide = 4)
+
+# モデルをコンパイル　学習係数は 0.003
+model.compile( tf.train.AdamOptimizer(learning_rate=3e-3), loss="categorical_crossentropy",
+              metrics=["acc"])
+
 
 #独自データで学習
 import keras
@@ -187,14 +286,17 @@ Y_test = np_utils.to_categorical(Y_test, 6)
 epochs = 50
 #input_shape = X_train.shape[1:]
 input_shape=(128,128,3)
-
+"""
 # residualモデル
 residual_model  = generate_model(input_shape, residual_block, blocks=6, block_sets=2, first_filters=32)
 residual_model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Adam(), metrics=['accuracy'])
 
 #訓練
 history = residual_model.fit(X_train, y_train, batch_size=128, epochs=epochs, validation_data=(X_test,Y_test))
-
+"""
+batch_size=128
+history = model.fit(X_train, y_train, batch_size=128,
+                               epochs=epochs, validation_data=(X_test,Y_test))
 json_string = model.to_json()
 open('test.json', 'w').write(json_string)
 model.save_weights('test.hdf5')
