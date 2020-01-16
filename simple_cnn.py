@@ -96,6 +96,36 @@ for index, name in enumerate(folder):
             X.append(data)
             Y.append(index)
 
+#タークオイズも学習データに追加
+for index, name in enumerate(folder):
+    print(name+ ":" + str(index))
+    dir = "tarcro_crop/" + name
+    files = glob.glob(dir + "/*.jpg")
+
+    #ランダムに950個取得する場合
+    l = list(np.arange(len(files)))
+    rnd_list =  random.sample(l, 800)
+    for i in range(len(files)):
+        image = Image.open(files[i]).convert("RGB")
+        #image = Image.convert("RGB")
+        image = image.resize((image_size, image_size))
+        data = np.asarray(image)
+        X.append(data)
+        Y.append(index)
+        #data Augumentation
+        if random.random() < 0.4:
+            data = horizontal_flip(data)
+            X.append(data)
+            Y.append(index)
+        if random.random() < 0.4:
+            data = vertical_flip(data)
+            X.append(data)
+            Y.append(index)
+        if random.random() < 0.4:
+            data = random_rotation(data)
+            X.append(data)
+            Y.append(index)
+
 X = np.array(X)
 Y = np.array(Y)
 print("X_shape:"+str(X.shape))
