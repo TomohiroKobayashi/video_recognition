@@ -87,7 +87,7 @@ for index, name in enumerate(folder):
             Y.append(1)
         elif name=="31":
             Y.append(2)
-        Y.append(index)
+        #Y.append(index)
         #data Augumentation
         if random.random() < 0.4:
             data = horizontal_flip(data)
@@ -164,8 +164,13 @@ for index, name in enumerate(folder):
             elif name=="31":
                 Y.append(2)
 
+import collections
+c = collections.Counter(Y)
+print(c.most_common())
+
 X = np.array(X)
 Y = np.array(Y)
+
 print("学習データ数は:"+str(len(Y)))
 print("X_shape:"+str(X.shape))
 
@@ -205,12 +210,16 @@ for index, name in enumerate(folder):
         X_test.append(data)
         #Y_test.append(index)
         if name == "11" or name=="12" or name=="14"or name=="17":
-            Y.append(0)
+            Y_test.append(0)
         elif name == "21":
-            Y.append(1)
+            Y_test.append(1)
         elif name=="31":
-            Y.append(2)
+            Y_test.append(2)
         count += 1
+
+import collections
+c = collections.Counter(Y_test)
+print(c.most_common())
 
 X_test = np.array(X_test)
 Y_test = np.array(Y_test)
