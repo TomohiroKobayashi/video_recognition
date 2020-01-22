@@ -259,7 +259,7 @@ model.add(Dense(64))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Dense(6))
+model.add(Dense(3))
 model.add(Activation('softmax'))
 
 epochs = 50
