@@ -62,7 +62,8 @@ import glob
 from livelossplot import PlotLossesKeras
 import random
 #順に立位・歩き、立位・停止、立位・採食。立位・その場足踏み、伏臥位、横臥位
-folder = ["11","12","14","17","21","31"]
+#folder = ["11","12","14","17","21","31"]
+folder = ["11","21","31"]
 image_size = 128
 
 X = []
