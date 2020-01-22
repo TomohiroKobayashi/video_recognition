@@ -81,20 +81,41 @@ for index, name in enumerate(folder):
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
         X.append(data)
+        if name == "11" or name=="12" or name=="14"or name=="17":
+            Y.append(0)
+        elif name == "21":
+            Y.append(1)
+        elif name=="31":
+            Y.append(2)
         Y.append(index)
         #data Augumentation
         if random.random() < 0.4:
             data = horizontal_flip(data)
             X.append(data)
-            Y.append(index)
+            if name == "11" or name=="12" or name=="14"or name=="17":
+                Y.append(0)
+            elif name == "21":
+                Y.append(1)
+            elif name=="31":
+                Y.append(2)
         if random.random() < 0.4:
             data = vertical_flip(data)
             X.append(data)
-            Y.append(index)
+            if name == "11" or name=="12" or name=="14"or name=="17":
+                Y.append(0)
+            elif name == "21":
+                Y.append(1)
+            elif name=="31":
+                Y.append(2)
         if random.random() < 0.4:
             data = random_rotation(data)
             X.append(data)
-            Y.append(index)
+            if name == "11" or name=="12" or name=="14"or name=="17":
+                Y.append(0)
+            elif name == "21":
+                Y.append(1)
+            elif name=="31":
+                Y.append(2)
 
 #タークオイズも学習データに追加
 for index, name in enumerate(folder):
@@ -108,30 +129,51 @@ for index, name in enumerate(folder):
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
         X.append(data)
-        Y.append(index)
+        if name == "11" or name=="12" or name=="14"or name=="17":
+            Y.append(0)
+        elif name == "21":
+            Y.append(1)
+        elif name=="31":
+            Y.append(2)
         #data Augumentation
         if random.random() < 0.4:
             data = horizontal_flip(data)
             X.append(data)
-            Y.append(index)
+            if name == "11" or name=="12" or name=="14"or name=="17":
+                Y.append(0)
+            elif name == "21":
+                Y.append(1)
+            elif name=="31":
+                Y.append(2)
         if random.random() < 0.4:
             data = vertical_flip(data)
             X.append(data)
-            Y.append(index)
+            if name == "11" or name=="12" or name=="14"or name=="17":
+                Y.append(0)
+            elif name == "21":
+                Y.append(1)
+            elif name=="31":
+                Y.append(2)
         if random.random() < 0.4:
             data = random_rotation(data)
             X.append(data)
-            Y.append(index)
+            if name == "11" or name=="12" or name=="14"or name=="17":
+                Y.append(0)
+            elif name == "21":
+                Y.append(1)
+            elif name=="31":
+                Y.append(2)
 
 X = np.array(X)
 Y = np.array(Y)
+print("学習データ数は:"+str(len(Y)))
 print("X_shape:"+str(X.shape))
 
 X = X.astype('float32')
 X = X / 255.0
 
 # 正解ラベルの形式を変換
-Y = np_utils.to_categorical(Y, 6)
+Y = np_utils.to_categorical(Y, 3)
 
 # 学習用データと検証用データ
 X_train = X
@@ -161,7 +203,13 @@ for index, name in enumerate(folder):
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
         X_test.append(data)
-        Y_test.append(index)
+        #Y_test.append(index)
+        if name == "11" or name=="12" or name=="14"or name=="17":
+            Y.append(0)
+        elif name == "21":
+            Y.append(1)
+        elif name=="31":
+            Y.append(2)
         count += 1
 
 X_test = np.array(X_test)
@@ -171,7 +219,7 @@ X_test = X_test.astype('float32')
 X_test = X_test / 255.0
 
 # 正解ラベルの形式を変換
-Y_test = np_utils.to_categorical(Y_test, 6)
+Y_test = np_utils.to_categorical(Y_test, 3)
 
 #X_test, X_val, y_test, y_val = train_test_split(X_test, Y_test, test_size=0.20)
 
