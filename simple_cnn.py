@@ -99,12 +99,9 @@ for index, name in enumerate(folder):
 #タークオイズも学習データに追加
 for index, name in enumerate(folder):
     print(name+ ":" + str(index))
-    dir = "tarcro_crop/" + name
+    dir = "tarcro_train/" + name
     files = glob.glob(dir + "/*.jpg")
 
-    #ランダムに950個取得する場合
-    l = list(np.arange(len(files)))
-    rnd_list =  random.sample(l, 800)
     for i in range(len(files)):
         image = Image.open(files[i]).convert("RGB")
         #image = Image.convert("RGB")
