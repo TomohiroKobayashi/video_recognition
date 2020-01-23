@@ -62,12 +62,13 @@ import glob
 from livelossplot import PlotLossesKeras
 import random
 #順に立位・歩き、立位・停止、立位・採食。立位・その場足踏み、伏臥位、横臥位
-#folder = ["11","12","14","17","21","31"]
-folder = ["11","21","31"]
+folder = ["11","12","14","17","21","31"]
 image_size = 128
 
 X = []
 Y = []
+stand_X_list = []
+stand_Y_list = []
 for index, name in enumerate(folder):
     print(name+ ":" + str(index))
     dir = "train_data_crop/" + name
@@ -81,12 +82,14 @@ for index, name in enumerate(folder):
         #image = Image.convert("RGB")
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
-        X.append(data)
         if name == "11" or name=="12" or name=="14"or name=="17":
-            Y.append(0)
+            stand_X_list.append(data)
+            stand_Y_list.append(0)
         elif name == "21":
+            X.append(data)
             Y.append(1)
         elif name=="31":
+            X.append(data)
             Y.append(2)
         #Y.append(index)
 
@@ -101,13 +104,21 @@ for index, name in enumerate(folder):
         #image = Image.convert("RGB")
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
-        X.append(data)
         if name == "11" or name=="12" or name=="14"or name=="17":
-            Y.append(0)
+            stand_X_list.append(data)
+            stand_Y_list.append(0)
         elif name == "21":
+            X.append(data)
             Y.append(1)
         elif name=="31":
+            X.append(data)
             Y.append(2)
+
+l = list(np.arange(len(stand_Y_list)))
+rnd_list =  random.sample(l, 1820)
+for i in rnd_list:
+    X.append(stand_X_list[i])
+    Y.append(stand_Y_list[i])
 
 import collections
 c = collections.Counter(Y)
@@ -140,6 +151,8 @@ print("after:"+str(y_train[:10]))
 #テストデータも同様に作成(タムロブライト)
 X_test = []
 Y_test = []
+stand_X_test = []
+stand_Y_test = []
 for index, name in enumerate(folder):
     print("test")
     print(name+ ":" + str(index))
@@ -152,15 +165,24 @@ for index, name in enumerate(folder):
         #image = image.convert("RGB")
         image = image.resize((image_size, image_size))
         data = np.asarray(image)
-        X_test.append(data)
         #Y_test.append(index)
         if name == "11" or name=="12" or name=="14"or name=="17":
-            Y_test.append(0)
+            stand_X_test.append(data)
+            stand_Y_test.append(0)
         elif name == "21":
+            X_test.append(data)
             Y_test.append(1)
         elif name=="31":
+            X_test.append(data)
             Y_test.append(2)
         count += 1
+
+l = list(np.arange(len(stand_Y_test)))
+rnd_list =  random.sample(l, 50)
+for i in rnd_list:
+    X_test.append(stand_X_test[i])
+    Y_test.append(stand_Y_test[i])
+
 
 import collections
 c = collections.Counter(Y_test)
@@ -206,7 +228,7 @@ from keras import optimizers
 # ResNet50のロード。FC層は不要なので include_top=False
 input_tensor = Input(shape=(image_size, image_size, 3))
 resnet50 = ResNet50(include_top=False, weights='imagenet', input_tensor=input_tensor)
-
+"""
 # FC層の作成
 top_model = Sequential()
 top_model.add(Flatten(input_shape=resnet50.output_shape[1:]))
@@ -219,6 +241,18 @@ top_model.add(Dense(3, activation='softmax'))
 
 # ResNet50とFC層を結合してモデルを作成
 resnet50_model = Model(input=resnet50.input, output=top_model(resnet50.output))
+"""
+top_model_1 = Sequential()
+top_model_1.add(Flatten(input_shape=resnet50.output_shape[1:]))
+top_model_1.add(Dense(256, activation='relu'))
+top_model_1.add(Dropout(0.5))
+top_model_1.add(Dense(64, activation='relu'))
+top_model_1.add(Dropout(0.5))
+
+top_model_2 = Sequential()
+top_model_2.add(Dense(3, activation='softmax'))
+
+resnet50_model = Model(input=resnet50.input, output=top_model_2(top_model_1(resnet50.output)))
 
 """
 #ResNet50の一部の重みを固定
