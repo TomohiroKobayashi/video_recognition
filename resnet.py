@@ -89,34 +89,6 @@ for index, name in enumerate(folder):
         elif name=="31":
             Y.append(2)
         #Y.append(index)
-        #data Augumentation
-        if random.random() < 0.4:
-            data = horizontal_flip(data)
-            X.append(data)
-            if name == "11" or name=="12" or name=="14"or name=="17":
-                Y.append(0)
-            elif name == "21":
-                Y.append(1)
-            elif name=="31":
-                Y.append(2)
-        if random.random() < 0.4:
-            data = vertical_flip(data)
-            X.append(data)
-            if name == "11" or name=="12" or name=="14"or name=="17":
-                Y.append(0)
-            elif name == "21":
-                Y.append(1)
-            elif name=="31":
-                Y.append(2)
-        if random.random() < 0.4:
-            data = random_rotation(data)
-            X.append(data)
-            if name == "11" or name=="12" or name=="14"or name=="17":
-                Y.append(0)
-            elif name == "21":
-                Y.append(1)
-            elif name=="31":
-                Y.append(2)
 
 #タークオイズも学習データに追加
 for index, name in enumerate(folder):
@@ -136,34 +108,6 @@ for index, name in enumerate(folder):
             Y.append(1)
         elif name=="31":
             Y.append(2)
-        #data Augumentation
-        if random.random() < 0.4:
-            data = horizontal_flip(data)
-            X.append(data)
-            if name == "11" or name=="12" or name=="14"or name=="17":
-                Y.append(0)
-            elif name == "21":
-                Y.append(1)
-            elif name=="31":
-                Y.append(2)
-        if random.random() < 0.4:
-            data = vertical_flip(data)
-            X.append(data)
-            if name == "11" or name=="12" or name=="14"or name=="17":
-                Y.append(0)
-            elif name == "21":
-                Y.append(1)
-            elif name=="31":
-                Y.append(2)
-        if random.random() < 0.4:
-            data = random_rotation(data)
-            X.append(data)
-            if name == "11" or name=="12" or name=="14"or name=="17":
-                Y.append(0)
-            elif name == "21":
-                Y.append(1)
-            elif name=="31":
-                Y.append(2)
 
 import collections
 c = collections.Counter(Y)
@@ -233,6 +177,15 @@ Y_test = np_utils.to_categorical(Y_test, 3)
 
 #X_test, X_val, y_test, y_val = train_test_split(X_test, Y_test, test_size=0.20)
 
+#データジェネレータの作成
+from keras.preprocessing.image import ImageDataGenerator
+datagen = ImageDataGenerator(
+        rotation_range=180,  # randomly rotate images in the range
+        horizontal_flip=True,  # randomly flip images horizontally
+        vertical_flip=True  # randomly flip images vertically
+    )
+datagen.fit(X_train)
+
 
 
 #Resnet50の定義
@@ -288,7 +241,8 @@ hist = resnet50_model.fit_generator(datagen.flow(X_train, y_train, batch_size=75
                         steps_per_epoch=X_train.shape[0])
 """
 
-history = resnet50_model.fit(X_train, y_train, batch_size=128, epochs=epochs, validation_data=(X_test,Y_test))
+#history = resnet50_model.fit(X_train, y_train, batch_size=128, epochs=epochs, validation_data=(X_test,Y_test))
+history = resnet50_model.fit_generator(datagen.flow(X_train,y_train,batch_size=128),epochs=epochs, validation_data=(X_test,Y_test))
 
 
 json_string = resnet50_model.to_json()
